@@ -159,7 +159,7 @@
           unblock.play().catch(() => {});
         } catch (e) {}
 
-        socket = io("https://aa6a7d2ba877.ngrok-free.app");
+        socket = io("wss://aa6a7d2ba877.ngrok-free.app", { transports: ["websocket"] });
         socket.on("connect", () => {
           statusBox.innerText = "Connected";
           readyBtn.style.display = "none";
