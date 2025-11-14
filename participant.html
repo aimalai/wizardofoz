@@ -212,7 +212,7 @@
         const type = data.type;
         const ts = new Date().toLocaleTimeString();
         if (type === "audio") {
-          const url = data.payload?.url || `/static/audio/${data.id}.m4a`;
+          const url = data.payload?.url || `https://aimalai.github.io/wizardofoz/static/audio/${data.id}.m4a`;
           const card = addCard("audio", "🔊", "Waiting to play audio…", ts);
           playAudio(url, card);
           updateStatus("Playing audio message…");
