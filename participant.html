@@ -41,6 +41,7 @@
         <button id="confirmTextBtn">Confirm text message received</button>
         <button id="confirmHapticBtn">Confirm haptic feedback received</button>
         <button id="disconnectBtn">Disconnect</button>
+        <button id="playLatestBtn" style="display:none;background:#2a9d8f;">Play latest audio</button>
       </div>
     </main>
     <div id="modal"></div>
@@ -48,7 +49,8 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
       let socket;
-      let unlockedAudio = null; // global reusable audio element
+      let audioCtx;           // unlocked AudioContext
+      let latestAudioURL = ""; // fallback manual play
       const msgBox = document.getElementById("msg");
       const cards = document.getElementById("cards");
       const statusBox = document.getElementById("status");
@@ -56,14 +58,14 @@
       const confirmBtn = document.getElementById("confirmBtn");
       const confirmTextBtn = document.getElementById("confirmTextBtn");
       const disconnectBtn = document.getElementById("disconnectBtn");
+      const playLatestBtn = document.getElementById("playLatestBtn");
       const modal = document.getElementById("modal");
 
       readyBtn.onclick = async () => {
         try {
-          // Unlock via user gesture: create and play the global element
-          unlockedAudio = new Audio("https://aimalai.github.io/wizardofoz/static/audio/ready_unblock.m4a");
-          await unlockedAudio.play();
-          console.log("Audio unlocked");
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          await audioCtx.resume(); // unlock on user gesture
+          console.log("AudioContext unlocked");
         } catch (e) {
           console.log("Unlock failed", e);
         }
@@ -101,13 +103,21 @@
         }
       };
 
+      playLatestBtn.onclick = async () => {
+        if (!latestAudioURL) return;
+        const card = addCard("audio", "🔊", "Manual play…", new Date().toLocaleTimeString());
+        await playViaAudioContext(latestAudioURL, card);
+      };
+
       function handleAction(data) {
         const type = data.type;
         const ts = new Date().toLocaleTimeString();
         if (type === "audio") {
           const url = data.payload?.url || `https://aimalai.github.io/wizardofoz/static/audio/${data.id}.m4a`;
+          latestAudioURL = url;
+          playLatestBtn.style.display = "block"; // show manual fallback in case
           const card = addCard("audio", "🔊", "Waiting to play audio…", ts);
-          playAudio(url, card);
+          playViaAudioContext(url, card);
           updateStatus("Playing audio message…");
         } else if (type === "text" || type === "inject_correction") {
           const txt = data.payload?.label || (typeof data.payload === "string" ? data.payload : data.id);
@@ -125,35 +135,35 @@
         if (socket) socket.emit("participant_ack", { id: data.id, response: "received" });
       }
 
-      function playAudio(url, card) {
-        // Reuse the already-unlocked element
-        if (!unlockedAudio) {
-          unlockedAudio = new Audio(url);
-        } else {
-          unlockedAudio.src = url;
-          unlockedAudio.currentTime = 0;
-          unlockedAudio.load(); // ensure source swap is committed before play
-        }
+      async function playViaAudioContext(url, card) {
+        try {
+          if (!audioCtx) {
+            // safety: require unlock if missing
+            updateCardBody(card, "Audio blocked; tap Connect first.");
+            updateStatus("Audio blocked.");
+            return;
+          }
+          const res = await fetch(url, { cache: "no-store" });
+          const buf = await res.arrayBuffer();
+          const audioBuffer = await audioCtx.decodeAudioData(buf);
+          const source = audioCtx.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioCtx.destination);
+          source.start();
 
-        unlockedAudio.onplay = () => {
           updateCardBody(card, "Audio playing…");
           showModal("Audio playing…");
           updateStatus("Audio playing…");
-        };
-        unlockedAudio.onended = () => {
-          updateCardBody(card, "Audio playback finished.");
-          hideModal();
-          updateStatus("Audio playback finished.");
-        };
-        unlockedAudio.onerror = () => {
+
+          source.onended = () => {
+            updateCardBody(card, "Audio playback finished.");
+            hideModal();
+            updateStatus("Audio playback finished.");
+          };
+        } catch (err) {
           updateCardBody(card, "Audio failed to play.");
           updateStatus("Audio failed.");
-        };
-
-        unlockedAudio.play().catch(() => {
-          updateCardBody(card, "Audio blocked; tap Connect first.");
-          updateStatus("Audio blocked.");
-        });
+        }
       }
 
       function addCard(type, icon, content, ts) {
