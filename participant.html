@@ -5,30 +5,126 @@
     <title>Accessible Participant App</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
-      :root { --font-size: 1.6em; }
-      body { font-family: "Segoe UI", Arial, sans-serif; margin:0; padding:0; background:#000; color:#fff; }
-      header { background:#222; padding:16px; text-align:center; font-size:1.4em; font-weight:bold; }
-      #statusBar { background:#111; color:#ccc; padding:6px 12px; font-size:0.9em; display:flex; justify-content:space-between; }
-      main { padding:20px; }
-      #msg { background:#111; border:2px solid #444; border-radius:12px; padding:16px; min-height:80px; font-size:var(--font-size); line-height:1.4; margin-bottom:20px; }
-      #cards { display:flex; flex-direction:column; gap:12px; }
-      .card { background:#111; border-radius:12px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.5); font-size:var(--font-size); }
-      .card-header { display:flex; align-items:center; font-weight:bold; margin-bottom:8px; }
-      .card-header span { margin-left:8px; }
-      .card-footer { font-size:0.8em; color:#aaa; margin-top:8px; }
-      .audio { border-left:6px solid #0a84ff; }
-      .text { border-left:6px solid green; }
-      .beacon { border-left:6px solid purple; }
-      #status { font-size:1.2em; margin:12px 0; color:#aaa; }
-      .button-row { display:flex; flex-wrap:wrap; gap:10px; margin:10px 0; }
-      button { padding:12px; font-size:1.2em; border:none; border-radius:8px; background:#0a84ff; color:#fff; cursor:pointer; flex-grow:1; min-width:150px; }
-      button:active { background:#0066cc; }
-      #modal { position:fixed; top:40%; left:50%; transform:translate(-50%,-50%); background:rgba(20,20,20,0.9); color:#fff; padding:20px 30px; border-radius:12px; font-size:1.4em; display:none; }
+      :root {
+        --font-size: 1.6em;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #000;
+        color: #fff;
+      }
+      header {
+        background: #222;
+        padding: 16px;
+        text-align: center;
+        font-size: 1.4em;
+        font-weight: bold;
+      }
+      #statusBar {
+        background: #111;
+        color: #ccc;
+        padding: 6px 12px;
+        font-size: 0.9em;
+        display: flex;
+        justify-content: space-between;
+      }
+      main {
+        padding: 20px;
+      }
+      #msg {
+        background: #111;
+        border: 2px solid #444;
+        border-radius: 12px;
+        padding: 16px;
+        min-height: 80px;
+        font-size: var(--font-size);
+        line-height: 1.4;
+        margin-bottom: 20px;
+      }
+      #cards {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .card {
+        background: #111;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        font-size: var(--font-size);
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      .card-header span {
+        margin-left: 8px;
+      }
+      .card-footer {
+        font-size: 0.8em;
+        color: #aaa;
+        margin-top: 8px;
+      }
+      .audio {
+        border-left: 6px solid #0a84ff;
+      }
+      .text {
+        border-left: 6px solid green;
+      }
+      .beacon {
+        border-left: 6px solid purple;
+      }
+      #status {
+        font-size: 1.2em;
+        margin: 12px 0;
+        color: #aaa;
+      }
+      .button-row {
+        display: flex; /* Arrange buttons side-by-side */
+        flex-wrap: wrap; /* Allow wrapping if needed */
+        gap: 10px; /* Space between buttons */
+        margin: 10px 0;
+      }
+      button {
+        /* Removed width: 48% and margin: 4px */
+        padding: 12px;
+        font-size: 1.2em;
+        border: none;
+        border-radius: 8px;
+        background: #0a84ff;
+        color: #fff;
+        cursor: pointer;
+        /* Allow buttons to take equal space */
+        flex-grow: 1;
+        min-width: 150px; /* Minimum width to prevent squishing */
+      }
+      button:active {
+        background: #0066cc;
+      }
+      #modal {
+        position: fixed;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(20, 20, 20, 0.9);
+        color: #fff;
+        padding: 20px 30px;
+        border-radius: 12px;
+        font-size: 1.4em;
+        display: none;
+      }
     </style>
   </head>
   <body>
     <header>Assistive Companion</header>
-    <div id="statusBar"><div id="time">--:--</div><div>🔋 85% 📶 LTE</div></div>
+    <div id="statusBar">
+      <div id="time">--:--</div>
+      <div>🔋 85% 📶 LTE</div>
+    </div>
     <main>
       <div id="msg">No messages yet</div>
       <div id="cards"></div>
@@ -41,7 +137,6 @@
         <button id="confirmTextBtn">Confirm text message received</button>
         <button id="confirmHapticBtn">Confirm haptic feedback received</button>
         <button id="disconnectBtn">Disconnect</button>
-        <button id="playLatestBtn" style="display:none;background:#2a9d8f;">Play latest audio</button>
       </div>
     </main>
     <div id="modal"></div>
@@ -49,8 +144,6 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
       let socket;
-      let audioCtx;           // unlocked AudioContext
-      let latestAudioURL = ""; // fallback manual play
       const msgBox = document.getElementById("msg");
       const cards = document.getElementById("cards");
       const statusBox = document.getElementById("status");
@@ -58,18 +151,17 @@
       const confirmBtn = document.getElementById("confirmBtn");
       const confirmTextBtn = document.getElementById("confirmTextBtn");
       const disconnectBtn = document.getElementById("disconnectBtn");
-      const playLatestBtn = document.getElementById("playLatestBtn");
       const modal = document.getElementById("modal");
 
       readyBtn.onclick = async () => {
         try {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          await audioCtx.resume(); // unlock on user gesture
-          console.log("AudioContext unlocked");
+          const unlock = new Audio("https://aimalai.github.io/wizardofoz/static/audio/ready_unblock.m4a");
+          await unlock.play(); 
+          console.log("Audio unlocked");
         } catch (e) {
           console.log("Unlock failed", e);
         }
-
+        
         socket = io("wss://aa6a7d2ba877.ngrok-free.app", { transports: ["websocket"] });
         socket.on("connect", () => {
           statusBox.innerText = "Connected";
@@ -81,18 +173,34 @@
 
       confirmBtn.onclick = () => {
         updateStatus("Participant confirmed they can hear.");
-        if (socket) socket.emit("participant_confirm", { id: "confirm_hearing", response: "confirmed" });
+        if (socket) {
+          socket.emit("participant_confirm", {
+            id: "confirm_hearing",
+            response: "confirmed",
+          });
+        }
       };
 
       confirmTextBtn.onclick = () => {
         updateStatus("Participant confirmed text received.");
-        if (socket) socket.emit("participant_confirm", { id: "confirm_text_received", response: "confirmed" });
+        if (socket) {
+          socket.emit("participant_confirm", {
+            id: "confirm_text_received",
+            response: "confirmed",
+          });
+        }
       };
 
       const confirmHapticBtn = document.getElementById("confirmHapticBtn");
+
       confirmHapticBtn.onclick = () => {
         updateStatus("Participant confirmed haptic feedback received.");
-        if (socket) socket.emit("participant_confirm", { id: "confirm_haptic", response: "confirmed" });
+        if (socket) {
+          socket.emit("participant_confirm", {
+            id: "confirm_haptic",
+            response: "confirmed",
+          });
+        }
       };
 
       disconnectBtn.onclick = () => {
@@ -103,24 +211,18 @@
         }
       };
 
-      playLatestBtn.onclick = async () => {
-        if (!latestAudioURL) return;
-        const card = addCard("audio", "🔊", "Manual play…", new Date().toLocaleTimeString());
-        await playViaAudioContext(latestAudioURL, card);
-      };
-
       function handleAction(data) {
         const type = data.type;
         const ts = new Date().toLocaleTimeString();
         if (type === "audio") {
           const url = data.payload?.url || `https://aimalai.github.io/wizardofoz/static/audio/${data.id}.m4a`;
-          latestAudioURL = url;
-          playLatestBtn.style.display = "block"; // show manual fallback in case
           const card = addCard("audio", "🔊", "Waiting to play audio…", ts);
-          playViaAudioContext(url, card);
+          playAudio(url, card);
           updateStatus("Playing audio message…");
         } else if (type === "text" || type === "inject_correction") {
-          const txt = data.payload?.label || (typeof data.payload === "string" ? data.payload : data.id);
+          const txt =
+            data.payload?.label ||
+            (typeof data.payload === "string" ? data.payload : data.id);
           addCard("text", "📝", txt, ts);
           updateStatus("Text message received.");
         } else if (type === "beacon") {
@@ -128,42 +230,34 @@
           addCard("beacon", "📡", txt, ts);
           updateStatus("Beacon detected.");
         } else if (type === "haptic") {
-          navigator.vibrate?.(200);
+          navigator.vibrate?.(200); // vibrate for 200ms if supported
           addCard("haptic", "📳", "Haptic feedback triggered.", ts);
           updateStatus("Haptic feedback triggered.");
         }
-        if (socket) socket.emit("participant_ack", { id: data.id, response: "received" });
+        if (socket)
+          socket.emit("participant_ack", { id: data.id, response: "received" });
       }
 
-      async function playViaAudioContext(url, card) {
-        try {
-          if (!audioCtx) {
-            // safety: require unlock if missing
-            updateCardBody(card, "Audio blocked; tap Connect first.");
-            updateStatus("Audio blocked.");
-            return;
-          }
-          const res = await fetch(url, { cache: "no-store" });
-          const buf = await res.arrayBuffer();
-          const audioBuffer = await audioCtx.decodeAudioData(buf);
-          const source = audioCtx.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioCtx.destination);
-          source.start();
-
+      function playAudio(url, card) {
+        const a = new Audio(url);
+        a.onplay = () => {
           updateCardBody(card, "Audio playing…");
           showModal("Audio playing…");
           updateStatus("Audio playing…");
-
-          source.onended = () => {
-            updateCardBody(card, "Audio playback finished.");
-            hideModal();
-            updateStatus("Audio playback finished.");
-          };
-        } catch (err) {
+        };
+        a.onended = () => {
+          updateCardBody(card, "Audio playback finished.");
+          hideModal();
+          updateStatus("Audio playback finished.");
+        };
+        a.onerror = () => {
           updateCardBody(card, "Audio failed to play.");
           updateStatus("Audio failed.");
-        }
+        };
+        a.play().catch(() => {
+          updateCardBody(card, "Audio blocked; tap Start first.");
+          updateStatus("Audio blocked.");
+        });
       }
 
       function addCard(type, icon, content, ts) {
@@ -200,17 +294,34 @@
       }
 
       document.getElementById("fontUp").onclick = () => {
-        const size = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--font-size"));
-        document.documentElement.style.setProperty("--font-size", size + 0.2 + "em");
+        const size = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--font-size"
+          )
+        );
+        document.documentElement.style.setProperty(
+          "--font-size",
+          size + 0.2 + "em"
+        );
       };
       document.getElementById("fontDown").onclick = () => {
-        const size = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--font-size"));
-        document.documentElement.style.setProperty("--font-size", Math.max(1.0, size - 0.2) + "em");
+        const size = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--font-size"
+          )
+        );
+        document.documentElement.style.setProperty(
+          "--font-size",
+          Math.max(1.0, size - 0.2) + "em"
+        );
       };
 
       function updateTime() {
         document.getElementById("time").innerText =
-          new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
       }
       setInterval(updateTime, 60000);
       updateTime();
