@@ -84,13 +84,12 @@
         color: #aaa;
       }
       .button-row {
-        display: flex; /* Arrange buttons side-by-side */
-        flex-wrap: wrap; /* Allow wrapping if needed */
-        gap: 10px; /* Space between buttons */
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
         margin: 10px 0;
       }
       button {
-        /* Removed width: 48% and margin: 4px */
         padding: 12px;
         font-size: 1.2em;
         border: none;
@@ -98,9 +97,8 @@
         background: #0a84ff;
         color: #fff;
         cursor: pointer;
-        /* Allow buttons to take equal space */
         flex-grow: 1;
-        min-width: 150px; /* Minimum width to prevent squishing */
+        min-width: 150px;
       }
       button:active {
         background: #0066cc;
@@ -144,6 +142,7 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
       let socket;
+      let unlockedAudio = null; // global reusable audio element
       const msgBox = document.getElementById("msg");
       const cards = document.getElementById("cards");
       const statusBox = document.getElementById("status");
@@ -155,13 +154,14 @@
 
       readyBtn.onclick = async () => {
         try {
-          const unlock = new Audio("https://aimalai.github.io/wizardofoz/static/audio/ready_unblock.m4a");
-          await unlock.play(); 
+          // user-gesture unlock
+          unlockedAudio = new Audio("https://aimalai.github.io/wizardofoz/static/audio/ready_unblock.m4a");
+          await unlockedAudio.play();
           console.log("Audio unlocked");
         } catch (e) {
           console.log("Unlock failed", e);
         }
-        
+
         socket = io("wss://aa6a7d2ba877.ngrok-free.app", { transports: ["websocket"] });
         socket.on("connect", () => {
           statusBox.innerText = "Connected";
@@ -192,7 +192,6 @@
       };
 
       const confirmHapticBtn = document.getElementById("confirmHapticBtn");
-
       confirmHapticBtn.onclick = () => {
         updateStatus("Participant confirmed haptic feedback received.");
         if (socket) {
@@ -230,7 +229,7 @@
           addCard("beacon", "📡", txt, ts);
           updateStatus("Beacon detected.");
         } else if (type === "haptic") {
-          navigator.vibrate?.(200); // vibrate for 200ms if supported
+          navigator.vibrate?.(200);
           addCard("haptic", "📳", "Haptic feedback triggered.", ts);
           updateStatus("Haptic feedback triggered.");
         }
@@ -239,23 +238,29 @@
       }
 
       function playAudio(url, card) {
-        const a = new Audio(url);
-        a.onplay = () => {
+        if (!unlockedAudio) {
+          unlockedAudio = new Audio(url);
+        } else {
+          unlockedAudio.src = url; // reuse unlocked element
+        }
+
+        unlockedAudio.onplay = () => {
           updateCardBody(card, "Audio playing…");
           showModal("Audio playing…");
           updateStatus("Audio playing…");
         };
-        a.onended = () => {
+        unlockedAudio.onended = () => {
           updateCardBody(card, "Audio playback finished.");
           hideModal();
           updateStatus("Audio playback finished.");
         };
-        a.onerror = () => {
+        unlockedAudio.onerror = () => {
           updateCardBody(card, "Audio failed to play.");
           updateStatus("Audio failed.");
         };
-        a.play().catch(() => {
-          updateCardBody(card, "Audio blocked; tap Start first.");
+
+        unlockedAudio.play().catch(() => {
+          updateCardBody(card, "Audio blocked; tap Connect first.");
           updateStatus("Audio blocked.");
         });
       }
