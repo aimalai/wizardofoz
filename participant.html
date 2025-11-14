@@ -154,23 +154,22 @@
       const modal = document.getElementById("modal");
 
       readyBtn.onclick = async () => {
-  try {
-    const unlock = new Audio("https://aimalai.github.io/wizardofoz/static/audio/ready_unblock.m4a");
-    await unlock.play(); // 👈 wait for playback to start
-    console.log("Audio unlocked");
-  } catch (e) {
-    console.log("Unlock failed", e);
-  }
-
-  socket = io("wss://aa6a7d2ba877.ngrok-free.app", { transports: ["websocket"] });
-  socket.on("connect", () => {
-    statusBox.innerText = "Connected";
-    readyBtn.style.display = "none";
-    updateStatus("Connected to server.");
-  });
-  socket.on("action", handleAction);
-};
-
+        try {
+          const unlock = new Audio("https://aimalai.github.io/wizardofoz/static/audio/ready_unblock.m4a");
+          await unlock.play(); 
+          console.log("Audio unlocked");
+        } catch (e) {
+          console.log("Unlock failed", e);
+        }
+        
+        socket = io("wss://aa6a7d2ba877.ngrok-free.app", { transports: ["websocket"] });
+        socket.on("connect", () => {
+          statusBox.innerText = "Connected";
+          readyBtn.style.display = "none";
+          updateStatus("Connected to server.");
+        });
+        socket.on("action", handleAction);
+      };
 
       confirmBtn.onclick = () => {
         updateStatus("Participant confirmed they can hear.");
