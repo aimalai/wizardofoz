@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Wizard Control Dashboard</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        margin: 0;
+        background: linear-gradient(135deg, #1f1f1f, #2c2c54);
+        color: #eee;
+      }
+      h2 {
+        margin: 0;
+        padding: 20px;
+        background: #111;
+        color: #0af;
+        text-align: center;
+        font-size: 1.8em;
+        letter-spacing: 1px;
+        border-bottom: 2px solid #0af;
+      }
+      .panel {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        align-items: stretch; /* Ensures flex items stretch to max height */
+      }
+      .controls,
+      .log {
+        padding: 20px;
+        border-radius: 12px;
+        background: #222;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        display: flex; /* New: enables flex layout inside .log */
+        flex-direction: column; /* New: stack children vertically inside .log */
+      }
+      .controls {
+        width: 380px;
+      }
+      .controls h3 {
+        color: #0af;
+        margin-top: 0;
+        border-bottom: 1px solid #444;
+        padding-bottom: 6px;
+      }
+      .log {
+        flex: 1;
+        /* Removed fixed height: 500px; to allow it to grow */
+        overflow: hidden; /* Prevent parent scroll */
+        background: #111;
+      }
+      .log h4 {
+        margin-top: 0;
+        color: #0af;
+        border-bottom: 1px solid #444;
+        padding-bottom: 6px;
+        flex-shrink: 0; /* New: Don't shrink the header */
+      }
+      button {
+        margin: 6px 0;
+        padding: 10px 14px;
+        font-size: 14px;
+        border: none;
+        border-radius: 6px;
+        background: #0af;
+        color: #fff;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        /* Removed width: 100% to allow side-by-side arrangement */
+      }
+      button:hover {
+        background: #08c;
+      }
+      input,
+      textarea {
+        width: 100%;
+        margin-top: 6px;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #444;
+        background: #1a1a1a;
+        color: #eee;
+        font-size: 14px;
+      }
+      textarea {
+        height: 100px; /* Increased height slightly to reflect image appearance */
+        resize: vertical;
+      }
+      #liveRunPane {
+        margin-top: 12px;
+        padding: 8px;
+        border-radius: 6px;
+        background: #1a1a1a;
+        height: auto; /* Removed fixed height */
+        flex-grow: 1; /* New: Make it fill the remaining space */
+        overflow: auto;
+        font-size: 13px;
+      }
+      .liveRow {
+        padding: 8px 10px;
+        border-bottom: 1px solid #333;
+        background: #2a2a2a;
+        border-radius: 4px;
+        margin-bottom: 6px;
+      }
+      .liveRow strong {
+        color: #0af;
+      }
+      .liveRow small {
+        color: #aaa;
+        display: block;
+        margin-top: 4px;
+      }
+      #participantStatus {
+        margin-top: 12px;
+        font-size: 14px;
+        font-weight: bold;
+        color: #0af;
+        text-align: center;
+        padding: 8px;
+        border-radius: 6px;
+        background: #111;
+        flex-shrink: 0; /* New: Don't shrink the status box */
+      }
+      .button-grid {
+        display: flex; /* Enable flexbox */
+        flex-wrap: wrap; /* Allow items to wrap to the next line */
+        gap: 8px; /* Space between buttons */
+        margin-bottom: 16px; /* Space below the grid */
+      }
+      .button-grid button {
+        flex-grow: 1; /* Allow buttons to grow and fill space */
+        min-width: 100px; /* Ensure a minimum width for readability */
+        margin: 0; /* Remove existing button margins */
+      }
+    </style>
+  </head>
+  <body>
+    <h2>
+      Navigation Aid for People with Low Vision <br />
+      <span class="subtitle">Wizard Control Dashboard</span>
+    </h2>
+    <div class="panel">
+      <div class="controls">
+        <h3>Testing Scenarios</h3>
+        <div class="button-grid">
+          <button onclick="trigger('audio','overview_01')">
+            Start Overview (audio)
+          </button>
+          <button onclick="trigger('audio','step_01')">
+            Step prompt (audio)
+          </button>
+          <button onclick="trigger('audio','step_02')">
+            Step prompt 2 (audio)
+          </button>
+          <button onclick="trigger('beacon','beacon_01')">
+            Simulate Beacon
+          </button>
+          <button onclick="trigger('inject_correction','corr_01')">
+            Inject Label Correction (text)
+          </button>
+          <button onclick="trigger('audio','boarding_confirm')">
+            Boarding Confirm
+          </button>
+          <button onclick="trigger('audio','seat_confirm')">
+            Seat Confirm
+          </button>
+          <button onclick="trigger('audio','deviation_prompt')">
+            Deviation Prompt (audio)
+          </button>
+          <button onclick="trigger('audio','indoor_fallback')">
+            Indoor Fallback (audio)
+          </button>
+          <button onclick="trigger('haptic','buzz_01')">
+            Trigger Haptic Feedback
+          </button>
+        </div>
+
+        <h3>Custom Text Message</h3>
+        <input id="aid" placeholder="action id (e.g., custom_text_01)" />
+        <textarea
+          id="payload"
+          placeholder="Enter custom text message"
+        ></textarea>
+        <button onclick="customTrigger()">Send Custom Text</button>
+        <hr />
+        <button onclick="downloadLog()">Download wizard_log.csv</button>
+        <div id="participantStatus">Participant: unknown</div>
+      </div>
+
+      <div class="log" id="log">
+        <h4>Action Log</h4>
+        <div id="liveRunPane" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      const socket = io();
+      let participantConnected = false;
+
+      socket.on("connect", () =>
+        appendLog("Connected to server: " + socket.id)
+      );
+      socket.on("status", (d) => appendLog("Status: " + JSON.stringify(d)));
+      socket.on("ack", (d) => appendLog("ACK: " + JSON.stringify(d)));
+      socket.on("action", (d) =>
+        appendLog("Broadcast action: " + JSON.stringify(d))
+      );
+      socket.on("participant_input", (row) => {
+        participantConnected = true;
+        document.getElementById("participantStatus").innerText =
+          "Participant: connected";
+        appendLiveRow(row);
+        appendLog("Participant input: " + JSON.stringify(row));
+      });
+
+      socket.on("participant_status", (d) => {
+        participantConnected = d.connected;
+        document.getElementById("participantStatus").innerText =
+          "Participant: " +
+          (participantConnected ? "connected" : "disconnected");
+        appendLog(
+          "Participant status update: " +
+            (participantConnected ? "connected" : "disconnected")
+        );
+      });
+
+      function appendLog(txt) {
+        const node = document.getElementById("log");
+        const p = document.createElement("div");
+        p.textContent = new Date().toISOString() + " - " + txt;
+        node.appendChild(p);
+        node.scrollTop = node.scrollHeight;
+      }
+
+      function appendLiveRow(row) {
+        const pane = document.getElementById("liveRunPane");
+        const el = document.createElement("div");
+        el.className = "liveRow";
+        const ts = row.serverTs
+          ? new Date(row.serverTs).toISOString()
+          : new Date().toISOString();
+        el.innerHTML =
+          `<div><strong>${(
+            row.type ||
+            row.eventType ||
+            "input"
+          ).toUpperCase()}</strong>: ${String(row.value)}</div>` +
+          `<small>${ts} | id:${row.id} | run:${row.runId || "n/a"}</small>`;
+        pane.prepend(el);
+      }
+
+      function trigger(type, id) {
+        if (!participantConnected) {
+          appendLog("Cannot send trigger: participant not connected");
+          return;
+        }
+        const payload = {};
+        if (type === "audio") payload.url = `/static/audio/${id}.m4a`;
+        if (type === "beacon")
+          payload.beacon =
+            "Entrance beacon detected — you are near the main doors.";
+        if (type === "inject_correction")
+          payload.label =
+            "Correction: that sign reads Platform Two — proceed to Platform Two now.";
+        socket.emit("trigger_action", { type, id, payload, note: "" });
+        appendLog("Sent trigger: " + type + " / " + id);
+      }
+
+      function customTrigger() {
+        if (!participantConnected) {
+          appendLog("Cannot send custom text: participant not connected");
+          return;
+        }
+        const id = document.getElementById("aid").value || "custom_text";
+        const payload = document.getElementById("payload").value || "";
+        socket.emit("trigger_action", { type: "text", id, payload, note: "" });
+        appendLog("Sent custom text: " + id + " / " + payload);
+      }
+
+      function downloadLog() {
+        fetch("/wizard_log.csv")
+          .then((r) => r.text())
+          .then((t) => {
+            const blob = new Blob([t], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "wizard_log.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+          })
+          .catch((e) => appendLog("Download failed: " + e));
+      }
+
+      try {
+        socket.emit("join_wizard");
+      } catch (e) {}
+    </script>
+  </body>
+</html>

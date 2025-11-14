@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Accessible Participant App</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --font-size: 1.6em;
+      }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #000;
+        color: #fff;
+      }
+      header {
+        background: #222;
+        padding: 16px;
+        text-align: center;
+        font-size: 1.4em;
+        font-weight: bold;
+      }
+      #statusBar {
+        background: #111;
+        color: #ccc;
+        padding: 6px 12px;
+        font-size: 0.9em;
+        display: flex;
+        justify-content: space-between;
+      }
+      main {
+        padding: 20px;
+      }
+      #msg {
+        background: #111;
+        border: 2px solid #444;
+        border-radius: 12px;
+        padding: 16px;
+        min-height: 80px;
+        font-size: var(--font-size);
+        line-height: 1.4;
+        margin-bottom: 20px;
+      }
+      #cards {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .card {
+        background: #111;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        font-size: var(--font-size);
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      .card-header span {
+        margin-left: 8px;
+      }
+      .card-footer {
+        font-size: 0.8em;
+        color: #aaa;
+        margin-top: 8px;
+      }
+      .audio {
+        border-left: 6px solid #0a84ff;
+      }
+      .text {
+        border-left: 6px solid green;
+      }
+      .beacon {
+        border-left: 6px solid purple;
+      }
+      #status {
+        font-size: 1.2em;
+        margin: 12px 0;
+        color: #aaa;
+      }
+      .button-row {
+        display: flex; /* Arrange buttons side-by-side */
+        flex-wrap: wrap; /* Allow wrapping if needed */
+        gap: 10px; /* Space between buttons */
+        margin: 10px 0;
+      }
+      button {
+        /* Removed width: 48% and margin: 4px */
+        padding: 12px;
+        font-size: 1.2em;
+        border: none;
+        border-radius: 8px;
+        background: #0a84ff;
+        color: #fff;
+        cursor: pointer;
+        /* Allow buttons to take equal space */
+        flex-grow: 1;
+        min-width: 150px; /* Minimum width to prevent squishing */
+      }
+      button:active {
+        background: #0066cc;
+      }
+      #modal {
+        position: fixed;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(20, 20, 20, 0.9);
+        color: #fff;
+        padding: 20px 30px;
+        border-radius: 12px;
+        font-size: 1.4em;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>Assistive Companion</header>
+    <div id="statusBar">
+      <div id="time">--:--</div>
+      <div>🔋 85% 📶 LTE</div>
+    </div>
+    <main>
+      <div id="msg">No messages yet</div>
+      <div id="cards"></div>
+      <div id="status">Disconnected</div>
+      <div class="button-row">
+        <button id="readyBtn">Tap to Connect</button>
+        <button id="fontUp">Increase Font Size</button>
+        <button id="fontDown">Decrease Font Size</button>
+        <button id="confirmBtn">Confirm I can hear</button>
+        <button id="confirmTextBtn">Confirm text message received</button>
+        <button id="confirmHapticBtn">Confirm haptic feedback received</button>
+        <button id="disconnectBtn">Disconnect</button>
+      </div>
+    </main>
+    <div id="modal"></div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      let socket;
+      const msgBox = document.getElementById("msg");
+      const cards = document.getElementById("cards");
+      const statusBox = document.getElementById("status");
+      const readyBtn = document.getElementById("readyBtn");
+      const confirmBtn = document.getElementById("confirmBtn");
+      const confirmTextBtn = document.getElementById("confirmTextBtn");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const modal = document.getElementById("modal");
+
+      readyBtn.onclick = () => {
+        try {
+          const unblock = new Audio("/static/audio/ready_unblock.m4a");
+          unblock.play().catch(() => {});
+        } catch (e) {}
+
+        socket = io();
+        socket.on("connect", () => {
+          statusBox.innerText = "Connected";
+          readyBtn.style.display = "none";
+          updateStatus("Connected to server.");
+        });
+        socket.on("action", handleAction);
+      };
+
+      confirmBtn.onclick = () => {
+        updateStatus("Participant confirmed they can hear.");
+        if (socket) {
+          socket.emit("participant_confirm", {
+            id: "confirm_hearing",
+            response: "confirmed",
+          });
+        }
+      };
+
+      confirmTextBtn.onclick = () => {
+        updateStatus("Participant confirmed text received.");
+        if (socket) {
+          socket.emit("participant_confirm", {
+            id: "confirm_text_received",
+            response: "confirmed",
+          });
+        }
+      };
+
+      const confirmHapticBtn = document.getElementById("confirmHapticBtn");
+
+      confirmHapticBtn.onclick = () => {
+        updateStatus("Participant confirmed haptic feedback received.");
+        if (socket) {
+          socket.emit("participant_confirm", {
+            id: "confirm_haptic",
+            response: "confirmed",
+          });
+        }
+      };
+
+      disconnectBtn.onclick = () => {
+        if (socket) {
+          socket.disconnect();
+          statusBox.innerText = "Disconnected";
+          updateStatus("Disconnected from server.");
+        }
+      };
+
+      function handleAction(data) {
+        const type = data.type;
+        const ts = new Date().toLocaleTimeString();
+        if (type === "audio") {
+          const url = data.payload?.url || `/static/audio/${data.id}.m4a`;
+          const card = addCard("audio", "🔊", "Waiting to play audio…", ts);
+          playAudio(url, card);
+          updateStatus("Playing audio message…");
+        } else if (type === "text" || type === "inject_correction") {
+          const txt =
+            data.payload?.label ||
+            (typeof data.payload === "string" ? data.payload : data.id);
+          addCard("text", "📝", txt, ts);
+          updateStatus("Text message received.");
+        } else if (type === "beacon") {
+          const txt = data.payload?.beacon || data.id;
+          addCard("beacon", "📡", txt, ts);
+          updateStatus("Beacon detected.");
+        } else if (type === "haptic") {
+          navigator.vibrate?.(200); // vibrate for 200ms if supported
+          addCard("haptic", "📳", "Haptic feedback triggered.", ts);
+          updateStatus("Haptic feedback triggered.");
+        }
+        if (socket)
+          socket.emit("participant_ack", { id: data.id, response: "received" });
+      }
+
+      function playAudio(url, card) {
+        const a = new Audio(url);
+        a.onplay = () => {
+          updateCardBody(card, "Audio playing…");
+          showModal("Audio playing…");
+          updateStatus("Audio playing…");
+        };
+        a.onended = () => {
+          updateCardBody(card, "Audio playback finished.");
+          hideModal();
+          updateStatus("Audio playback finished.");
+        };
+        a.onerror = () => {
+          updateCardBody(card, "Audio failed to play.");
+          updateStatus("Audio failed.");
+        };
+        a.play().catch(() => {
+          updateCardBody(card, "Audio blocked; tap Start first.");
+          updateStatus("Audio blocked.");
+        });
+      }
+
+      function addCard(type, icon, content, ts) {
+        const card = document.createElement("div");
+        card.className = "card " + type;
+        card.innerHTML = `
+          <div class="card-header">${icon}<span>${type.toUpperCase()}</span></div>
+          <div class="card-body">${content}</div>
+          <div class="card-footer">${ts}</div>
+        `;
+        cards.prepend(card);
+        return card;
+      }
+
+      function updateCardBody(card, newText) {
+        const body = card.querySelector(".card-body");
+        if (body) body.innerText = newText;
+      }
+
+      function updateStatus(txt) {
+        msgBox.innerText = txt;
+        setTimeout(() => {
+          if (msgBox.innerText === txt) msgBox.innerText = "";
+        }, 4000);
+      }
+
+      function showModal(txt) {
+        modal.innerText = txt;
+        modal.style.display = "block";
+        setTimeout(() => hideModal(), 2000);
+      }
+      function hideModal() {
+        modal.style.display = "none";
+      }
+
+      document.getElementById("fontUp").onclick = () => {
+        const size = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--font-size"
+          )
+        );
+        document.documentElement.style.setProperty(
+          "--font-size",
+          size + 0.2 + "em"
+        );
+      };
+      document.getElementById("fontDown").onclick = () => {
+        const size = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--font-size"
+          )
+        );
+        document.documentElement.style.setProperty(
+          "--font-size",
+          Math.max(1.0, size - 0.2) + "em"
+        );
+      };
+
+      function updateTime() {
+        document.getElementById("time").innerText =
+          new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+      }
+      setInterval(updateTime, 60000);
+      updateTime();
+    </script>
+  </body>
+</html>
